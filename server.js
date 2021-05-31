@@ -1,6 +1,4 @@
-const Sequelize = require('sequelize');
-const { STRING, UUID, UUIDV4 } = Sequelize;
-const conn = new Sequelize(process.env.DATABASE_URL || 'postgres://localhost/sq_db', {logging: false})
+const { conn, syncAndSeed, models:{ Faculty, Employee}} = require('./db')
 const express = require('express');
 const app = express();
 
@@ -20,40 +18,23 @@ app.get('/api/faculties', async(req,res,next)=> {
     }
 })
 
-
-const Faculty = conn.define('faculty', {
-    name: {
-        type: STRING
+app.get('/api/employees', async(req,res,next)=> {
+    try {
+        res.send(await Employee.findAll({
+            include: [
+                {
+                    model: Employee,
+                    as: 'supervisor'
+                },
+                Employee,
+                Faculty
+            ]
+        }))
+    }
+    catch(ex){
+        console.log(ex)
     }
 })
-
-const Employee = conn.define('employee', {
-    id: {
-        type: UUID,
-        primaryKey: true,
-        defaultValue: UUIDV4
-    },
-    name: {
-        type: STRING
-    }
-})
-
-Faculty.belongsTo(Employee, {as: 'professor'});
-Employee.hasMany(Faculty, {foreignKey: 'professorId'})
-
-const syncAndSeed = async() => {
-    await conn.sync({ force: true })
-    const [Joe, Ricky, Science, English] = await Promise.all([
-        Employee.create({ name: 'Joe' }),
-        Employee.create({ name: 'Ricky' }),
-        Faculty.create({ name: 'Science' }),
-        Faculty.create({ name: 'English' }),
-    ])
-
-    English.professorId = Joe.id;
-    await English.save();
-}
-
 
 
 const init = async() => {
